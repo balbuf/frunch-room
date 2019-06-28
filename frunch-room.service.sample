@@ -7,7 +7,8 @@ After=graphical.target
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority
 Type=simple
-ExecStart=/bin/bash /home/pi/frunch-room/bin/launch.sh
+ExecStart=/home/pi/frunch-room/bin/launch.sh
+WorkingDirectory=/home/pi/frunch-room/
 Restart=on-abort
 User=pi
 Group=pi
