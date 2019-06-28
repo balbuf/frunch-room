@@ -16,7 +16,7 @@ const syncInterval = 60 * 1000;
 const pictureInterval = 20 * 1000; // how often a new picture should be shown
 const pictureTimeout = 60 * 1000; // max wait time to retrieve a new picture
 const minRepeat = 10; // minimum number of pictures to show before repeating
-const history = [];
+const history = []; // holds the history of photos shown
 var currentPicture;
 
 app.use(express.static('public'));
