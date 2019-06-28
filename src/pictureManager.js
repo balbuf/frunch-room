@@ -4,17 +4,20 @@ const moment = require('moment');
 const request = require('request-promise-native');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 
 const tableName = 'pictures';
 const mimeRegex = /^image\//;
 const pageSize = 100;
 const geoApi = 'https://nominatim.openstreetmap.org/reverse';
-const geoInterval = 1100;
+const geoInterval = 1100; // min wait time between geocode API requests
 const throwbackFrequency = 15; // show a throwback about every X pictures
-const mostRecent = 50;
+const mostRecent = 50; // the number of photos that should be considered "recent"
 const daysWeightWindow = 5; // the probability for pictures this many days or older
 const msInDay = 1000 * 60 * 60 * 24;
-var isGeocoding = false;
+var isGeocoding = false; // keep track of if we are geocoding so we only make one request at a time
+const maxDimensions = 2000; // max image dimensions when resizing
+const imageDir = path.join(process.cwd(), 'public/images/');
 
 module.exports = class pictureManager {
 
@@ -30,7 +33,6 @@ module.exports = class pictureManager {
     const dbPromise = new Promise((resolve, reject) => {
       db.exec(`CREATE TABLE IF NOT EXISTS ${tableName} (
         id TEXT PRIMARY KEY,
-        ext TEXT,
         author TEXT,
         added INTEGER,
         taken INTEGER,
@@ -153,8 +155,7 @@ module.exports = class pictureManager {
       return;
     }
 
-    console.debug('adding file');
-    console.dir(file, {depth: null});
+    console.debug('adding new file');
 
     const db = await this.db();
 
@@ -182,11 +183,10 @@ module.exports = class pictureManager {
     }
 
     return new Promise((resolve, reject) => {
-      db.run(`INSERT OR IGNORE INTO ${tableName}(id, ext, author, added, taken, location)
-        VALUES ($id, $ext, $author, $added, $taken, $location)
+      db.run(`INSERT OR IGNORE INTO ${tableName}(id, author, added, taken, location)
+        VALUES ($id, $author, $added, $taken, $location)
       `, {
         $id: file.id,
-        $ext: file.fileExtension,
         $author: file.owners && file.owners[0] && file.owners[0].displayName,
         $added: moment(file.createdTime).unix(),
         $taken: taken,
@@ -320,45 +320,48 @@ module.exports = class pictureManager {
    */
   async getFilePath(id) {
     const drive = await this.drive();
-    const db = await this.db();
-    return new Promise((resolve, reject) => {
-      db.get(`SELECT ext FROM ${tableName} WHERE id = ?`, id, async (err, row) => {
-        if (err) {
-          return reject(err);
-        }
+    return new Promise(async (resolve, reject) => {
+      // determine file path
+      const filePath = `${imageDir}${id}.jpg`;
+      // check to see if the file exists
+      const fileExists = await (new Promise((resolve, reject) => {
+        fs.access(filePath, fs.F_OK, (error) => {
+          resolve(!error);
+        });
+      }));
+      if (fileExists) {
+        return resolve(filePath);
+      }
 
-        const filePath = path.join(process.cwd(), 'public/images', `${id}.${row.ext}`);
-        // check to see if the file exists
-        const fileExists = await (new Promise((resolve, reject) => {
-          fs.access(filePath, fs.F_OK, (error) => {
-            resolve(!error);
-          });
-        }));
-        if (fileExists) {
-          return resolve(filePath);
-        }
+      const dest = fs.createWriteStream(filePath);
+      const res = await drive.files.get(
+        {fileId: id, alt: 'media'},
+        {responseType: 'stream'}
+      ).catch(reject);
+      // create a transformer to resize and compress image
+      const transformer = sharp()
+        .resize({
+          width: maxDimensions,
+          height: maxDimensions,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg();
 
-        const dest = fs.createWriteStream(filePath);
-        const res = await drive.files.get(
-          {fileId: id, alt: 'media'},
-          {responseType: 'stream'}
-        ).catch(reject);
-
-        // @todo resize large images
-        if (res.data) {
-          res.data
-            .on('end', () => {
-              console.log('Done downloading file.');
-              resolve(filePath);
-            })
-            .on('error', (err) => {
-              console.error('Error downloading file.');
-              reject(err);
-            })
-            .pipe(dest);
-        }
-      });
-
+      // process and save image
+      if (res.data) {
+        res.data
+          .on('end', () => {
+            console.log('Download complete');
+            resolve(filePath);
+          })
+          .on('error', (err) => {
+            console.error('Error downloading file');
+            reject(err);
+          })
+          .pipe(transformer)
+          .pipe(dest);
+      }
     });
   }
 }

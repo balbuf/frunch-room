@@ -13,8 +13,9 @@ const db = new sqlite3.Database('frunch-room.sqlite');
 const options = new keyValue(db);
 const pictures = new pictureManager(db, options);
 const syncInterval = 60 * 1000;
-const pictureInterval = 20 * 1000;
-const maxRepeat = 10;
+const pictureInterval = 20 * 1000; // how often a new picture should be shown
+const pictureTimeout = 60 * 1000; // max wait time to retrieve a new picture
+const minRepeat = 10; // minimum number of pictures to show before repeating
 const history = [];
 var currentPicture;
 
@@ -31,6 +32,12 @@ async function getPicture() {
   return pictures.selectRandom(history).then(async (picture) => {
     picture.path = path.join('/images', path.basename(await pictures.getFilePath(picture.id)));
     picture.when = `${!picture.taken ? 'added ' : ''} ${moment.unix(picture.taken || picture.added).fromNow()}`;
+    // strip out non-processed GPS coords
+    if (picture.location && picture.location[0] === '{') {
+      picture.location = '';
+      // make sure we are taking care of it
+      pictures.geocodeLocations();
+    }
     return picture;
   });
 }
@@ -45,8 +52,8 @@ function setPicture(picture) {
   currentPicture = picture;
   history.unshift(picture.id);
   // truncate the history array
-  if (history.length > maxRepeat) {
-    history.length = maxRepeat;
+  if (history.length > minRepeat) {
+    history.length = minRepeat;
   }
   io.emit('new picture', picture);
 }
@@ -64,7 +71,8 @@ async function schedulePictures() {
       getPicture(),
       new Promise((resolve, reject) => {
         setTimeout(resolve, pictureInterval);
-        // @todo: reject after a long timeout
+        // reject after a long timeout
+        setTimeout(reject, pictureTimeout);
       }),
     ]).catch(console.error))[0]);
   }
@@ -79,8 +87,9 @@ async function main() {
   pictures.geocodeLocations();
 
   io.on('connection', (socket) => {
+    // immediately send the current picture when a client connects
     socket.emit('new picture', currentPicture);
-    console.log('user connected');
+    console.log('client connected');
   });
 
   schedulePictures();

@@ -16,10 +16,13 @@
     <script>
       var socket = io();
       var template = document.getElementById('slideTemplate').innerHTML;
-      var currentSlide;
+      var currentSlide, currentPicId;
 
       socket.on('new picture', function (picture) {
-        console.log(picture);
+        // bail if the picture is what we are already showing, e.g. if the server restarted
+        if (picture.id === currentPicId) {
+          return;
+        }
         var slide = document.createElement('div');
         slide.innerHTML = template;
         slide.querySelector('img').src = picture.path;
@@ -34,6 +37,7 @@
           }, 2500);
         }
         currentSlide = slide;
+        currentPicId = picture.id;
       });
     </script>
     <style>
