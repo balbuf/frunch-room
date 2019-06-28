@@ -2,6 +2,7 @@
 
 # set which display to use
 export DISPLAY=:0
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../" >/dev/null 2>&1 && pwd)"
 
 # kill child processes on exit
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
@@ -20,7 +21,7 @@ sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' /home/pi/.config/chromium
 
 # launch server
 echo 'Launching server'
-GOOGLE_APPLICATION_CREDENTIALS="$(git rev-parse --show-toplevel)/google-auth.json" node index.js &
+GOOGLE_APPLICATION_CREDENTIALS="$ROOT/google-auth.json" node index.js &
 
 # wait for server to be responsive
 echo 'Waiting for server to respond'
