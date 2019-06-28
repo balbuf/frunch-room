@@ -21,7 +21,7 @@ sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' /home/pi/.config/chromium
 
 # launch server
 echo 'Launching server'
-GOOGLE_APPLICATION_CREDENTIALS="$ROOT/google-auth.json" node index.js &
+GOOGLE_APPLICATION_CREDENTIALS="$ROOT/google-auth.json" node "$ROOT/index.js" &
 
 # wait for server to be responsive
 echo 'Waiting for server to respond'
