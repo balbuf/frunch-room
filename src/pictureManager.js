@@ -7,7 +7,7 @@ const path = require('path');
 const sharp = require('sharp');
 
 const tableName = 'pictures';
-const mimeRegex = /^image\//;
+const mimeRegex = /^image\/(?:jpeg|gif|tiff|png)$/;
 const pageSize = 100;
 const geoApi = 'https://nominatim.openstreetmap.org/reverse';
 const geoInterval = 1100; // min wait time between geocode API requests
