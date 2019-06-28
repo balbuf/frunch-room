@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# set which display to use
+export DISPLAY=:0
+
 # kill child processes on exit
 trap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT
 
@@ -27,4 +30,4 @@ done
 
 # launch chromium in kiosk mode
 echo 'Launching chromium'
-DISPLAY=:0 /usr/bin/chromium-browser --noerrdialogs --disable-infobars --kiosk http://localhost:3000
+/usr/bin/chromium-browser --noerrdialogs --disable-infobars --kiosk http://localhost:3000
