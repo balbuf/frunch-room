@@ -9,7 +9,7 @@
   "author": "Stephen Beemsterboer",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "google-auth-library": "^4.2.4",
     "googleapis": "^40.0.0",
     "moment": "^2.24.0",
